@@ -56,6 +56,30 @@ lemma mgu_imp_unifier {sig : Signature} {X : Variables} [DecidableEq X] (E : Equ
 def Unifiable {sig : Signature} {X : Variables} [DecidableEq X]
   (E : EqualityProblem sig X) : Prop := ∃ σ : Substitution sig X, Unifier E σ
 
+
+
+  def unification_alg {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (Atom sig X)] [DecidableEq (Term sig X)]
+  (E : EqualityProblem sig X) : Option (Substitution sig X) := sorry
+
+
+     --match E with
+    --| [] => some (fun x => Term.var x)
+    --| (lhs, rhs) :: rest =>
+     --   if ss = ts then unification_alg rest
+       -- else
+         -- match lhs, rhs with
+           -- | .pred p ss, .pred q ts =>
+             -- if p = q ∧ ss.length = ts.length then unification_alg (ss.zip ts)
+              --else none
+          --  | .var x, t =>
+          --      sorry -- Occurs-Check und x durch t ersetzen
+         -- | .func f ss, .var x =>
+          --      sorry -- Variable nach links bringen
+          --  | .func f ss, .func g ts =>
+          --      sorry -- Funktionssymbole vergleichen und ggf. zerlegen
+          --| .func f, .var x => .var x, .func f
+
+
 theorem unifiable_iff_mgu_idempot {sig : Signature} {X : Variables} [inst : DecidableEq X]
     (E : EqualityProblem sig X) : Unifiable E ↔ ∃ σ : Substitution sig X,
       MostGeneralUnifier E σ ∧ Idempotent σ ∧ σ.domain ∪ σ.codomain ⊆ E.freeVars := by
