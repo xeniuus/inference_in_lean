@@ -59,10 +59,24 @@ def Unifiable {sig : Signature} {X : Variables} [DecidableEq X]
 abbrev TermProblem (sig : Signature) (X : Variables) :=
   List (Term sig X × Term sig X)
 
-
 def termVars {sig : Signature} {X : Variables} : Term sig X → List X
   | .var x => [x]
   | .func _ args => args.flatMap termVars
+
+def problemVars {sig : Signature} {X : Variables} (E : TermProblem sig X) : List X :=
+  E.flatMap fun (s, t) => termVars s ++ termVars t
+
+def variableCount {sig : Signature} {X : Variables}
+    [DecidableEq X] (E : TermProblem sig X) : Nat :=
+  (problemVars E).eraseDups.length
+
+def termSize {sig : Signature} {X : Variables} : Term sig X → Nat
+  | .var _ => 1
+  | .func _ args =>
+      1 + (args.map termSize).sum
+
+def problemSize {sig : Signature} {X : Variables} (E : TermProblem sig X) : Nat :=
+  (E.map fun (s, t) => termSize s + termSize t).sum
 
 def unifyTerms {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (Term sig X)] (E : TermProblem sig X) : Option (Substitution sig X) :=
   match E with
@@ -87,6 +101,7 @@ def unifyTerms {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (T
                 unifyTerms (ss.zip ts ++ rest)
               else
                 none
+  termination_by (variableCount E, problemSize E)
   decreasing_by all_goals sorry
 
 def atomProblemsToTerms {sig : Signature} {X : Variables} [DecidableEq (Atom sig X)] (E : EqualityProblem sig X) : Option (TermProblem sig X) :=
