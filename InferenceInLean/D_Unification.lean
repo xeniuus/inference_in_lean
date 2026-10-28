@@ -64,6 +64,28 @@ def termVars {sig : Signature} {X : Variables} : Term sig X → List X
   | .var x => [x]
   | .func _ args => args.flatMap termVars
 
+def unifyTerms {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (Term sig X)] (E : TermProblem sig X) : Option (Substitution sig X) :=
+  match E with
+  | [] => some (fun x => Term.var x)
+  | (lhs, rhs) :: rest =>
+      if lhs = rhs then unifyTerms rest
+      else
+        match lhs, rhs with
+          | t, .var x
+          | .var x, t =>
+              if x ∈ termVars t then none
+              else sorry
+
+          | .func f ss, .func g ts =>
+              if (Term.func f [] : Term sig X) = Term.func g [] ∧ ss.length = ts.length then
+                unifyTerms (ss.zip ts ++ rest)
+              else
+                none
+
+
+  decreasing_by all_goals sorry
+
+
 
   def unification_alg {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (Atom sig X)] [DecidableEq (Term sig X)]
   (E : EqualityProblem sig X) : Option (Substitution sig X) := sorry
