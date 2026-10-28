@@ -56,6 +56,13 @@ lemma mgu_imp_unifier {sig : Signature} {X : Variables} [DecidableEq X] (E : Equ
 def Unifiable {sig : Signature} {X : Variables} [DecidableEq X]
   (E : EqualityProblem sig X) : Prop := ∃ σ : Substitution sig X, Unifier E σ
 
+abbrev TermProblem (sig : Signature) (X : Variables) :=
+  List (Term sig X × Term sig X)
+
+
+def termVars {sig : Signature} {X : Variables} : Term sig X → List X
+  | .var x => [x]
+  | .func _ args => args.flatMap termVars
 
 
   def unification_alg {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (Atom sig X)] [DecidableEq (Term sig X)]
