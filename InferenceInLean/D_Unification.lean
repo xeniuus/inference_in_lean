@@ -75,27 +75,30 @@ def unifyTerms {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (T
           | .var x, t =>
               if x ∈ termVars t then none
               else
-
                 let σ : Substitution sig X :=
                 fun y => if y = x then t else Term.var y
-
                 let rest' : TermProblem sig X :=
                   rest.map fun (s, u) => (s.substitute σ, u.substitute σ)
-
                 match unifyTerms rest' with
                 | none   => none
                 | some θ => some (fun y => (σ y).substitute θ)
-
           | .func f ss, .func g ts =>
               if (Term.func f [] : Term sig X) = Term.func g [] ∧ ss.length = ts.length then
                 unifyTerms (ss.zip ts ++ rest)
               else
                 none
-
-
   decreasing_by all_goals sorry
 
-
+def atomProblemsToTerms {sig : Signature} {X : Variables} [DecidableEq (Atom sig X)] (E : EqualityProblem sig X) : Option (TermProblem sig X) :=
+  match E with
+  | [] => some []
+  | (.pred p ss, .pred q ts) :: rest =>
+      if (Atom.pred p [] : Atom sig X) = Atom.pred q [] ∧ ss.length = ts.length then
+        match atomProblemsToTerms rest with
+        | none => none
+        | some remaining => some (ss.zip ts ++ remaining)
+      else
+        none
 
   def unification_alg {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (Atom sig X)] [DecidableEq (Term sig X)]
   (E : EqualityProblem sig X) : Option (Substitution sig X) := sorry
