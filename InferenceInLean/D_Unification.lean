@@ -74,7 +74,17 @@ def unifyTerms {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (T
           | t, .var x
           | .var x, t =>
               if x ∈ termVars t then none
-              else sorry
+              else
+
+                let σ : Substitution sig X :=
+                fun y => if y = x then t else Term.var y
+
+                let rest' : TermProblem sig X :=
+                  rest.map fun (s, u) => (s.substitute σ, u.substitute σ)
+
+                match unifyTerms rest' with
+                | none   => none
+                | some θ => some (fun y => (σ y).substitute θ)
 
           | .func f ss, .func g ts =>
               if (Term.func f [] : Term sig X) = Term.func g [] ∧ ss.length = ts.length then
