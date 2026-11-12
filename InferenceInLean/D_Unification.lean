@@ -15,7 +15,7 @@ namespace Unification
 
 @[simp]
 abbrev Equality (sig : Signature) (X : Variables) :=
-  Atom sig X × Atom sig X
+  Term sig X × Term sig X
 
 @[simp]
 abbrev EqualityProblem (sig : Signature) (X : Variables) :=
@@ -28,21 +28,21 @@ instance {sig : Signature} {X : Variables} : Membership (Equality sig X) (Equali
 def EqualityProblem.freeVars {sig : Signature} {X : Variables} :
     EqualityProblem sig X -> Set X
   | [] => ∅
-  | (lhs, rhs) :: eqs => Atom.freeVars lhs ∪ Atom.freeVars rhs ∪ freeVars eqs
+  | (lhs, rhs) :: eqs => lhs.freeVars  ∪ rhs.freeVars  ∪ freeVars eqs
 
 @[simp]
 def Unifier {sig : Signature} {X : Variables} [DecidableEq X]
     (E : EqualityProblem sig X) (σ : Substitution sig X) : Prop :=
   ∀ eq ∈ E, have ⟨lhs, rhs⟩ := eq; lhs.substitute σ = rhs.substitute σ
 
-def example_unification_problem : EqualityProblem (Signature.mk String String) String :=
-  [(.pred "P" [.func "f" [Term.var "x"]], .pred "P" [Term.var "y"])]
+--def example_unification_problem : EqualityProblem (Signature.mk String String) String :=
+ -- [(.pred "P" [.func "f" [Term.var "x"]], .pred "P" [Term.var "y"])]
 
 def example_unifier : Substitution (Signature.mk String String) String :=
   fun x => if x == "y" then Term.func "f" [Term.var "x"] else Term.var x
 
-theorem example_unification : Unifier example_unification_problem example_unifier := by
-  simp [example_unification_problem, example_unifier]
+--theorem example_unification : Unifier example_unification_problem example_unifier := by
+ -- simp [example_unification_problem, example_unifier]
 
 @[simp]
 def MostGeneralUnifier {sig : Signature} {X : Variables} [DecidableEq X]
@@ -56,18 +56,15 @@ lemma mgu_imp_unifier {sig : Signature} {X : Variables} [DecidableEq X] (E : Equ
 def Unifiable {sig : Signature} {X : Variables} [DecidableEq X]
   (E : EqualityProblem sig X) : Prop := ∃ σ : Substitution sig X, Unifier E σ
 
-abbrev TermProblem (sig : Signature) (X : Variables) :=
-  List (Term sig X × Term sig X)
-
 def termVars {sig : Signature} {X : Variables} : Term sig X → List X
   | .var x => [x]
   | .func _ args => args.flatMap termVars
 
-def problemVars {sig : Signature} {X : Variables} (E : TermProblem sig X) : List X :=
+def problemVars {sig : Signature} {X : Variables} (E : EqualityProblem sig X) : List X :=
   E.flatMap fun (s, t) => termVars s ++ termVars t
 
 def variableCount {sig : Signature} {X : Variables}
-    [DecidableEq X] (E : TermProblem sig X) : Nat :=
+    [DecidableEq X] (E : EqualityProblem sig X) : Nat :=
   (problemVars E).eraseDups.length
 
 def termSize {sig : Signature} {X : Variables} : Term sig X → Nat
@@ -75,14 +72,14 @@ def termSize {sig : Signature} {X : Variables} : Term sig X → Nat
   | .func _ args =>
       1 + (args.map termSize).sum
 
-def problemSize {sig : Signature} {X : Variables} (E : TermProblem sig X) : Nat :=
+def problemSize {sig : Signature} {X : Variables} (E : EqualityProblem sig X) : Nat :=
   (E.map fun (s, t) => termSize s + termSize t).sum
 
-def unifyTerms {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (Term sig X)] (E : TermProblem sig X) : Option (Substitution sig X) :=
+def unification_alg {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (Term sig X)] (E : EqualityProblem sig X) : Option (Substitution sig X) :=
   match E with
   | [] => some (fun x => Term.var x)
   | (lhs, rhs) :: rest =>
-      if lhs = rhs then unifyTerms rest
+      if lhs = rhs then unification_alg rest
       else
         match lhs, rhs with
           | t, .var x
@@ -91,51 +88,18 @@ def unifyTerms {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (T
               else
                 let σ : Substitution sig X :=
                 fun y => if y = x then t else Term.var y
-                let rest' : TermProblem sig X :=
+                let rest' : EqualityProblem sig X :=
                   rest.map fun (s, u) => (s.substitute σ, u.substitute σ)
-                match unifyTerms rest' with
+                match unification_alg rest' with
                 | none   => none
                 | some θ => some (fun y => (σ y).substitute θ)
           | .func f ss, .func g ts =>
               if (Term.func f [] : Term sig X) = Term.func g [] ∧ ss.length = ts.length then
-                unifyTerms (ss.zip ts ++ rest)
+                unification_alg (ss.zip ts ++ rest)
               else
                 none
   termination_by (variableCount E, problemSize E)
   decreasing_by all_goals sorry
-
-def atomProblemsToTerms {sig : Signature} {X : Variables} [DecidableEq (Atom sig X)] (E : EqualityProblem sig X) : Option (TermProblem sig X) :=
-  match E with
-  | [] => some []
-  | (.pred p ss, .pred q ts) :: rest =>
-      if (Atom.pred p [] : Atom sig X) = Atom.pred q [] ∧ ss.length = ts.length then
-        match atomProblemsToTerms rest with
-        | none => none
-        | some remaining => some (ss.zip ts ++ remaining)
-      else
-        none
-
-  def unification_alg {sig : Signature} {X : Variables} [DecidableEq X] [DecidableEq (Atom sig X)] [DecidableEq (Term sig X)]
-    (E : EqualityProblem sig X) : Option (Substitution sig X) :=
-       match atomProblemsToTerms E with
-       | none => none
-       | some termEquations => unifyTerms termEquations
-          --match E with
-          --| [] => some (fun x => Term.var x)
-          --| (lhs, rhs) :: rest =>
-          --   if ss = ts then unification_alg rest
-            -- else
-              -- match lhs, rhs with
-                -- | .pred p ss, .pred q ts =>
-                  -- if p = q ∧ ss.length = ts.length then unification_alg (ss.zip ts)
-                    --else none
-                --  | .var x, t =>
-                --      sorry -- Occurs-Check und x durch t ersetzen
-              -- | .func f ss, .var x =>
-                --      sorry -- Variable nach links bringen
-                --  | .func f ss, .func g ts =>
-                --      sorry -- Funktionssymbole vergleichen und ggf. zerlegen
-                --| .func f, .var x => .var x, .func f
 
 
 theorem unifiable_iff_mgu_idempot {sig : Signature} {X : Variables} [inst : DecidableEq X]
