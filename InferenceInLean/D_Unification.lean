@@ -102,16 +102,29 @@ def unification_alg {sig : Signature} {X : Variables} [DecidableEq X] [Decidable
   decreasing_by all_goals sorry
 
 
+
+lemma unification_alg_isSome {sig : Signature} {X : Variables} [DecidableEq X]
+    [DecidableEq (Term sig X)] (E : EqualityProblem sig X) (τ : Substitution sig X)
+    (h : Unifier E τ) : (unification_alg E).isSome := by
+  sorry
+
+lemma unification_alg_spec {sig : Signature} {X : Variables} [DecidableEq X]
+    [DecidableEq (Term sig X)] (E : EqualityProblem sig X) (σ : Substitution sig X)
+    (h : unification_alg E = some σ) :
+    Unifier E σ ∧ Idempotent σ ∧ σ.domain ∪ σ.codomain ⊆ E.freeVars ∧
+      ∀ τ, Unifier E τ → σ ≤ τ := by
+  sorry
+
 theorem unifiable_iff_mgu_idempot {sig : Signature} {X : Variables} [inst : DecidableEq X]
     (E : EqualityProblem sig X) : Unifiable E ↔ ∃ σ : Substitution sig X,
       MostGeneralUnifier E σ ∧ Idempotent σ ∧ σ.domain ∪ σ.codomain ⊆ E.freeVars := by
   apply Iff.intro
-  · sorry
-    /- This direction would need the standard unification algorithm.
-    I have played around with implementing it but it brings quite some chanllenge with it and feels
-    like it's outside the scope of this project.
-      -/
-  · intro h
-    obtain ⟨σ, ⟨⟨⟩⟩⟩ := h
+  · rintro ⟨τ, hτ⟩
+    classical
+    obtain ⟨σ, hσ⟩ := Option.isSome_iff_exists.1 (unification_alg_isSome E τ hτ)
+    obtain ⟨hU, hIdem, hVars, hGen⟩ := unification_alg_spec E σ hσ
+    exact ⟨σ, And.intro hU hGen, hIdem, hVars⟩
+
+  · rintro ⟨σ, ⟨⟨⟩⟩⟩
     use σ
 alias main_unification_theorem := unifiable_iff_mgu_idempot
